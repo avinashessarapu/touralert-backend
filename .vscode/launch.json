@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-TouralertApplication<touralert>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.touralert.TouralertApplication",
+            "projectName": "touralert",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
