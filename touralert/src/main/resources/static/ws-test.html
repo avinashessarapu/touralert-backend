@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TourAlert Live Dashboard Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 30px; background: #f4f6f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto; }
+        #status { font-weight: bold; padding: 8px; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
+        .connected { background: #e6f4ea; color: #137333; }
+        .disconnected { background: #fce8e6; color: #c5221f; }
+        #alerts { margin-top: 15px; }
+        .alert-box { background: #fff3cd; border-left: 5px solid #ffc107; padding: 12px; margin-bottom: 10px; border-radius: 4px; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>📡 TourAlert Live Stream Monitor</h2>
+    <div id="status" class="disconnected">Connecting to Backend WebSocket Channel...</div>
+    
+    <h3>Live Broadcast Stream:</h3>
+    <div id="alerts"><em>Waiting for live incident broadcasts from backend...</em></div>
+</div>
+
+<script>
+    // Dynamically detects if you are using localhost or a GitHub proxy URL
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    // Configures the correct URL automatically
+    const socketUrl = isLocalhost 
+        ? 'http://localhost:8080/ws-alerts' 
+        : `${window.location.protocol}//${window.location.host}/ws-alerts`;
+        
+    console.log("Attempting live connection to:", socketUrl);
+    
+    // Initialize SockJS and STOMP
+    const socket = new SockJS(socketUrl);
+    const stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, function (frame) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerText = "⚡ Connected to Live WebSocket Stream!";
+        statusDiv.className = "connected";
+        console.log('Connected: ' + frame);
+
+        stompClient.subscribe('/topic/active-hazards', function (response) {
+            const hazard = JSON.parse(response.body);
+            const alertsDiv = document.getElementById('alerts');
+            
+            if(alertsDiv.querySelector('em')) alertsDiv.innerHTML = '';
+            
+            const newAlert = document.createElement('div');
+            newAlert.className = 'alert-box';
+            newAlert.innerHTML = `<strong>⚠️ LIVE ALERT: ${hazard.type}</strong><br>${hazard.description}<br><small>📍 Location: ${hazard.routeOrLocation}</small>`;
+            alertsDiv.insertBefore(newAlert, alertsDiv.firstChild);
+        });
+    }, function(error) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerText = "❌ Connection Failed. Check if server is running.";
+        statusDiv.className = "disconnected";
+    });
+</script>
+</body>
+</html>
