@@ -5,9 +5,11 @@ import com.touralert.model.Incident;
 import com.touralert.repository.AuditLogRepository;
 import com.touralert.repository.IncidentRepository;
 import com.touralert.repository.UserRepository;
+import com.touralert.service.FileStorageService;
 import com.touralert.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -27,14 +29,40 @@ public class IncidentController {
     @Autowired
     private NotificationService notificationService;
 
-    // 1. REPORT AN INCIDENT
-    @PostMapping
-    public String reportIncident(@RequestBody Incident incident, @RequestParam Long userId) {
+    @Autowired
+    private FileStorageService fileStorageService; // Inject storage engine
+
+    // 1. REPORT AN INCIDENT WITH IMAGE ATTACHMENT
+    // URL: POST http://localhost:8080/api/incidents/upload?userId=1
+    @PostMapping("/upload")
+    public String reportIncidentWithImage(
+            @RequestParam("type") String type,
+            @RequestParam("description") String description,
+            @RequestParam("routeOrLocation") String routeOrLocation,
+            @RequestParam("latitude") double latitude,
+            @RequestParam("longitude") double longitude,
+            @RequestParam("userId") Long userId,
+            @RequestParam(value = "file", required = false) MultipartFile file) {
+        
         return userRepository.findById(userId).map(user -> {
-            incident.setReporter(user); 
+            Incident incident = new Incident();
+            incident.setType(type);
+            incident.setDescription(description);
+            incident.setRouteOrLocation(routeOrLocation);
+            incident.setLatitude(latitude);
+            incident.setLongitude(longitude);
+            incident.setStatus("PENDING");
+            incident.setReporter(user);
             incident.setReportedAt(java.time.LocalDateTime.now());
+
+            // Process image file if present
+            if (file != null && !file.isEmpty()) {
+                String savedImageUrl = fileStorageService.storeFile(file);
+                incident.setImageUrl(savedImageUrl);
+            }
+
             incidentRepository.save(incident);
-            return "Incident reported successfully by " + user.getUsername() + "!";
+            return "Incident reported successfully with image by " + user.getUsername() + "!";
         }).orElse("Error: User profile not found. Cannot report incident.");
     }
 
@@ -57,12 +85,10 @@ public class IncidentController {
             incident.setStatus(newStatus);
             incidentRepository.save(incident);
 
-            // Real-Time Push Hook
             if (newStatus.equals("VERIFIED")) {
                 notificationService.broadcastHazardAlert(incident);
             }
 
-            // Generate system audit log entry
             String details = "Incident ID " + id + " status modified from " + oldStatus + " to " + newStatus + " by Admin ID: " + adminUserId;
             AuditLog log = new AuditLog("INCIDENT_STATUS_UPDATE", details, "ADMIN_" + adminUserId);
             auditLogRepository.save(log);

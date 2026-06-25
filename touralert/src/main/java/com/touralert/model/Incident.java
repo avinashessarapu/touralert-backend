@@ -15,6 +15,8 @@ public class Incident {
     private double latitude;
     private double longitude;
 
+    private String imageUrl;
+
     private String type;
     private String description;
     private String status; // e.g., "PENDING", "VERIFIED", "RESOLVED"
@@ -25,10 +27,15 @@ public void setLatitude(double latitude) { this.latitude = latitude; }
 public double getLongitude() { return longitude; }
 public void setLongitude(double longitude) { this.longitude = longitude; }
 
+public String getImageUrl() { return imageUrl; }
+public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
     // LINK TO THE USER: Many incidents can belong to One User
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User reporter;
+
+    
 
     public Incident() {}
 
