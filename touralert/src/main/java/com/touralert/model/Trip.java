@@ -14,6 +14,10 @@ import java.time.LocalDate;
 @EntityListeners(AuditingEntityListener.class)
 public class Trip {
 
+    @org.hibernate.annotations.SQLDelete(sql = "UPDATE trips SET is_deleted = true WHERE id=?")
+@org.hibernate.annotations.SQLRestriction("is_deleted = false")
+
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,6 +27,10 @@ public class Trip {
     private LocalDate startDate;
     private LocalDate endDate;
     private String status; // e.g., "PLANNED", "ONGOING", "COMPLETED"
+    private boolean isDeleted = false;
+
+    public boolean isDeleted() { return isDeleted; }
+public void setDeleted(boolean deleted) { isDeleted = deleted; }
 
     @CreatedDate
 @Column(nullable = false, updatable = false)

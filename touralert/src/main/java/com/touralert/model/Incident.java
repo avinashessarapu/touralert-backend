@@ -12,10 +12,18 @@ public class Incident {
     private Long id;
 
     private String routeOrLocation;
+    private double latitude;
+    private double longitude;
+
     private String type;
     private String description;
     private String status; // e.g., "PENDING", "VERIFIED", "RESOLVED"
     private LocalDateTime reportedAt;
+
+    public double getLatitude() { return latitude; }
+public void setLatitude(double latitude) { this.latitude = latitude; }
+public double getLongitude() { return longitude; }
+public void setLongitude(double longitude) { this.longitude = longitude; }
 
     // LINK TO THE USER: Many incidents can belong to One User
     @ManyToOne

@@ -5,6 +5,7 @@ import com.touralert.model.Incident;
 import com.touralert.repository.AuditLogRepository;
 import com.touralert.repository.IncidentRepository;
 import com.touralert.repository.UserRepository;
+import com.touralert.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,8 +24,10 @@ public class IncidentController {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     // 1. REPORT AN INCIDENT
-    // URL: POST http://localhost:8080/api/incidents?userId=1
     @PostMapping
     public String reportIncident(@RequestBody Incident incident, @RequestParam Long userId) {
         return userRepository.findById(userId).map(user -> {
@@ -35,17 +38,13 @@ public class IncidentController {
         }).orElse("Error: User profile not found. Cannot report incident.");
     }
 
-    // 2. UPDATE INCIDENT STATUS (With Audit Logging)
-    // URL: PUT http://localhost:8080/api/incidents/1/status?status=VERIFIED
-    // 2. UPDATE INCIDENT STATUS (Role-Based Admin Protection Layer)
-    // URL: PUT http://localhost:8080/api/incidents/1/status?status=VERIFIED&adminUserId=2
+    // 2. UPDATE INCIDENT STATUS (Role-Based Admin Protection + Broker Broadcast)
     @PutMapping("/{id}/status")
     public String updateIncidentStatus(
             @PathVariable Long id, 
             @RequestParam String status,
             @RequestParam Long adminUserId) {
         
-        // Explicit Authorization Check: Is the modifier an actual ADMIN?
         boolean isAdmin = userRepository.existsByIdAndRole(adminUserId, "ADMIN");
         if (!isAdmin) {
             throw new RuntimeException("Access Denied: Only users with ADMIN privileges can update incident statuses.");
@@ -53,20 +52,26 @@ public class IncidentController {
 
         return incidentRepository.findById(id).map(incident -> {
             String oldStatus = incident.getStatus();
-            incident.setStatus(status);
+            String newStatus = status.toUpperCase();
+            
+            incident.setStatus(newStatus);
             incidentRepository.save(incident);
 
-            // Generate an immutable system audit log entry
-            String details = "Incident ID " + id + " status modified from " + oldStatus + " to " + status + " by Admin ID: " + adminUserId;
+            // Real-Time Push Hook
+            if (newStatus.equals("VERIFIED")) {
+                notificationService.broadcastHazardAlert(incident);
+            }
+
+            // Generate system audit log entry
+            String details = "Incident ID " + id + " status modified from " + oldStatus + " to " + newStatus + " by Admin ID: " + adminUserId;
             AuditLog log = new AuditLog("INCIDENT_STATUS_UPDATE", details, "ADMIN_" + adminUserId);
             auditLogRepository.save(log);
 
-            return "Incident status successfully updated to: " + status;
+            return "Incident status successfully updated to: " + newStatus;
         }).orElse("Error: Incident report not found.");
     }
 
     // 3. GET ACTIVE HAZARDS ONLY
-    // URL: GET http://localhost:8080/api/incidents/active
     @GetMapping("/active")
     public List<Incident> getActiveIncidents() {
         return incidentRepository.findByStatusNotIgnoreCase("RESOLVED");
