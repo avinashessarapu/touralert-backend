@@ -64,4 +64,31 @@ public class UserController {
             throw new RuntimeException("Authentication Failed: Invalid username or password credentials.");
         }
     }
+
+    // 3. SECURE PROFILE UPDATE
+    // URL: PUT http://localhost:8080/api/users/{id}/profile
+    @PutMapping("/{id}/profile")
+    public String updateProfile(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> updates) {
+        
+        return userRepository.findById(id).map(user -> {
+            if (updates.containsKey("username")) {
+                user.setUsername(updates.get("username"));
+            }
+            if (updates.containsKey("email")) {
+                String newEmail = updates.get("email");
+                if (userRepository.existsByEmailAndIdNot(newEmail, id)) {
+                    throw new RuntimeException("Error: Email is already in use by another account.");
+                }
+                user.setEmail(newEmail);
+            }
+            if (updates.containsKey("password") && !updates.get("password").isBlank()) {
+                user.setPassword(passwordEncoder.encode(updates.get("password")));
+            }
+            
+            userRepository.save(user);
+            return "Profile updated successfully for user ID: " + id;
+        }).orElseThrow(() -> new RuntimeException("Error: User profile not found."));
+    }
 }
