@@ -8,12 +8,16 @@ import com.touralert.repository.TripRepository;
 import com.touralert.repository.IncidentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private UserRepository userRepository;
@@ -30,22 +34,23 @@ public class DataInitializer implements CommandLineRunner {
         if (userRepository.count() == 0) {
             System.out.println("====== SEEDING TEST DATABASE CHANNELS ======");
 
-            // 1. Seed regular traveler and admin accounts
+            // 1. Seed regular traveler account
             User traveler = new User();
             traveler.setUsername("avinash_travels");
             traveler.setEmail("avinash@gmail.com");
-            traveler.setPassword("travelpass123");
+            traveler.setPassword(passwordEncoder.encode("travelpass123")); // Securely Hashed
             traveler.setRole("USER");
             userRepository.save(traveler);
 
+            // 2. Seed administrative account
             User admin = new User();
             admin.setUsername("system_admin");
             admin.setEmail("admin@touralert.com");
-            admin.setPassword("adminsecure456");
+            admin.setPassword(passwordEncoder.encode("adminsecure456")); // Securely Hashed
             admin.setRole("ADMIN");
             userRepository.save(admin);
 
-            // 2. Seed a mock planned trip for our traveler heading to Araku
+            // 3. Seed a mock planned trip for our traveler heading to Araku
             Trip trip = new Trip();
             trip.setDestination("Araku Valley");
             trip.setStartLocation("Visakhapatnam");
@@ -55,7 +60,7 @@ public class DataInitializer implements CommandLineRunner {
             trip.setTraveler(traveler);
             tripRepository.save(trip);
 
-            // 3. Seed an active reported landslide near Araku Valley road
+            // 4. Seed an active reported landslide near Araku Valley road
             Incident landslide = new Incident();
             landslide.setType("LANDSLIDE");
             landslide.setDescription("Heavy rocks blocking major route lanes on Ghat road section.");
