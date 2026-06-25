@@ -1,0 +1,109 @@
+{
+	"info": {
+		"name": "TourAlert Backend Integration Suite",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. User Registration",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"avinash_explorer\",\n    \"email\": \"avinash.test@gmail.com\",\n    \"password\": \"securePass123\",\n    \"role\": \"USER\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/users/register",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "users", "register"]
+				}
+			}
+		},
+		{
+			"name": "2. User Login (Captures Token)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const jsonData = pm.response.json();",
+							"    if (jsonData.token) {",
+							"        pm.globals.set(\"jwt_token\", jsonData.token);",
+							"    }",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"avinash_explorer\",\n    \"password\": \"securePass123\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/users/login",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "users", "login"]
+				}
+			}
+		},
+		{
+			"name": "3. Report Incident with Image File",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{ "key": "type", "value": "LANDSLIDE", "type": "text" },
+						{ "key": "description", "value": "Heavy rockfall blocking lanes near Ghat road", "type": "text" },
+						{ "key": "routeOrLocation", "value": "Araku Ghat Road", "type": "text" },
+						{ "key": "latitude", "value": "18.3281", "type": "text" },
+						{ "key": "longitude", "value": "82.8778", "type": "text" },
+						{ "key": "userId", "value": "1", "type": "text" },
+						{ "key": "file", "description": "Select test image from your machine", "type": "file", "src": "" }
+					]
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/incidents/upload?userId=1",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "incidents", "upload"],
+					"query": [{ "key": "userId", "value": "1" }]
+				}
+			}
+		},
+		{
+			"name": "4. Get Active Hazards (Secure Route)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+				],
+				"url": {
+					"raw": "http://localhost:8080/api/incidents/active",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8080",
+					"path": ["api", "incidents", "active"]
+				}
+			}
+		}
+	]
+}
