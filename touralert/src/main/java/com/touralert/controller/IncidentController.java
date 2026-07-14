@@ -87,6 +87,19 @@ public class IncidentController {
 
             if (newStatus.equals("VERIFIED")) {
                 notificationService.broadcastHazardAlert(incident);
+                // Reward reporter with TripCoins for a verified report
+                try {
+                    if (incident.getReporter() != null) {
+                        com.touralert.model.User reporter = incident.getReporter();
+                        Integer current = reporter.getTripCoins() == null ? 0 : reporter.getTripCoins();
+                        // Award 50 coins for a verified and validated report
+                        reporter.setTripCoins(current + 50);
+                        userRepository.save(reporter);
+                    }
+                } catch (Exception e) {
+                    // Log or ignore coin awarding failure to avoid blocking status update
+                    System.err.println("Failed to award TripCoins: " + e.getMessage());
+                }
             }
 
             String details = "Incident ID " + id + " status modified from " + oldStatus + " to " + newStatus + " by Admin ID: " + adminUserId;

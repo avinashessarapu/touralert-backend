@@ -27,6 +27,7 @@ public class User {
     private String email;
     private String role; // e.g., "TRAVELER" or "ADMIN"
     private LocalDateTime createdAt;
+    private Integer tripCoins = 0;
 
     // Empty constructor
     public User() {}
@@ -53,4 +54,6 @@ public class User {
     public void setRole(String role) { this.role = role; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Integer getTripCoins() { return tripCoins; }
+    public void setTripCoins(Integer tripCoins) { this.tripCoins = tripCoins; }
 }

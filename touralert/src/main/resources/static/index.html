@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TourAlert | Safety Command Center</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="brand">
+          <div class="brand-badge">⚡</div>
+          <div>
+            <h1>TourAlert</h1>
+            <p>Live traveler safety and hazard monitoring</p>
+          </div>
+        </div>
+        <div class="auth-actions">
+          <button id="themeToggle" class="btn secondary">🌙 Dark</button>
+          <span id="socketStatus" class="status-busy">● Offline</span>
+          <button class="btn danger logout-btn hidden">Logout</button>
+        </div>
+      </header>
+
+      <section id="authView" class="hero">
+        <div class="hero-grid">
+          <div class="auth-intro">
+            <p class="badge warning">Always-on incident response</p>
+            <h2>Design a calm, confident journey with a beautifully guided safety command center</h2>
+            <p>Explore live hazards, review smart route insights, and move between traveler and admin experiences with fast, elegant navigation.</p>
+            <div class="portal-grid">
+              <button class="portal-card traveler" data-demo="traveler">
+                <strong>Traveler workspace</strong>
+                <span>Plan routes, submit hazards, and stay aware in real time.</span>
+              </button>
+              <button class="portal-card admin" data-demo="admin">
+                <strong>Admin workspace</strong>
+                <span>Review incidents, coordinate responses, and monitor active risk.</span>
+              </button>
+            </div>
+            <div class="stats">
+              <div class="stat-card">
+                <span class="muted">Trips</span>
+                <strong id="statTrips">0</strong>
+              </div>
+              <div class="stat-card">
+                <span class="muted">Hazards</span>
+                <strong id="statHazards">0</strong>
+              </div>
+              <div class="stat-card">
+                <span class="muted">Alerts</span>
+                <strong id="statAlerts">0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel auth-panel">
+            <div class="auth-switcher">
+              <button class="switch-btn active" data-auth-view="login">Login</button>
+              <button class="switch-btn" data-auth-view="signup">Sign up</button>
+            </div>
+            <div id="loginPanel" class="auth-panel-body">
+              <div class="inline-row">
+                <h3>Welcome back</h3>
+                <span id="statusMessage" class="muted">Secure access to your traveler console</span>
+              </div>
+              <form id="loginForm" class="form-grid" style="margin-top: 12px;">
+                <label>
+                  Username
+                  <input name="username" required />
+                </label>
+                <label>
+                  Password
+                  <input name="password" type="password" required />
+                </label>
+                <button class="btn primary" type="submit">Login</button>
+              </form>
+            </div>
+            <div id="signupPanel" class="auth-panel-body hidden">
+              <div class="inline-row">
+                <h3>Create account</h3>
+                <span class="muted">Start exploring the full experience</span>
+              </div>
+              <form id="registerForm" class="form-grid" style="margin-top: 10px;">
+                <label>
+                  Username
+                  <input name="username" required />
+                </label>
+                <label>
+                  Email
+                  <input name="email" type="email" required />
+                </label>
+                <label>
+                  Password
+                  <input name="password" type="password" required />
+                </label>
+                <button class="btn secondary" type="submit">Create account</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboardView" class="hidden dashboard-shell">
+        <div class="topbar">
+          <div>
+            <h2 style="margin: 0;">Welcome back, <span id="userLabel">Traveler</span></h2>
+            <p class="muted">Your safety command center for trips, hazards, and live alerts.</p>
+          </div>
+          <div class="hero-actions">
+            <button id="refreshBtn" class="btn secondary">Refresh</button>
+            <button class="btn danger logout-btn">Logout</button>
+          </div>
+        </div>
+
+        <div class="hero-card">
+          <div>
+            <p class="badge info">Role: <span id="roleBadge">USER</span></p>
+            <h3 id="dashboardTitle" style="margin: 10px 0 6px;">Traveler dashboard</h3>
+            <p id="dashboardSubtitle" class="muted">Monitor route safety, receive updates, and respond quickly to new hazards.</p>
+          </div>
+          <div class="hero-actions">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="text-align:right;">
+                <div class="muted small">TripCoins</div>
+                <div id="coinBalance" style="font-weight:800;">0</div>
+                <div class="muted small">10 coins = ₹2</div>
+              </div>
+              <button class="button primary" id="travelerPortalBtn">Explore traveler</button>
+            <button class="button secondary" id="adminPortalBtn">Explore admin</button>
+            <button class="button secondary" id="refreshDashBtn">Refresh panel</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="muted">Trips</span>
+            <strong id="statTripsDash">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="muted">Active hazards</span>
+            <strong id="statHazardsDash">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="muted">Unread alerts</span>
+            <strong id="statAlertsDash">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="muted">Connection</span>
+            <strong id="statConnection">Offline</strong>
+          </div>
+        </div>
+
+        <div class="quick-grid">
+          <div class="panel">
+            <h3>Quick actions</h3>
+            <div class="action-grid">
+              <button class="action-card" data-scroll="trip-panel">Plan a new trip →</button>
+              <button class="action-card" data-scroll="incident-panel">Report a hazard →</button>
+              <button class="action-card" data-scroll="admin-panel">Open admin console →</button>
+              <button class="action-card" id="scanAction">Run route intelligence →</button>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Route intelligence</h3>
+            <div id="riskOutput" class="risk-output">Run a scan to inspect nearby hazards and proximity alerts.</div>
+            <div class="map-card">
+              <div class="inline-row">
+                <strong>Trip route preview</strong>
+                <span id="mapStatus" class="muted small">Select a trip to preview its route.</span>
+              </div>
+              <iframe id="routeMap" class="route-map" src="https://www.google.com/maps?q=TourAlert%20Route&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-grid cols-2">
+          <div class="panel" id="trip-panel">
+            <h3>Plan a trip</h3>
+            <div id="map" style="height:300px;border-radius:12px;margin-bottom:12px;overflow:hidden;"></div>
+            <form id="tripForm" class="form-grid" style="margin-top: 12px;">
+              <label>
+                Destination
+                <input name="destination" required />
+              </label>
+              <label>
+                Start location
+                <input name="startLocation" required />
+              </label>
+              <label>
+                Start date
+                <input name="startDate" type="date" required />
+              </label>
+              <label>
+                End date
+                <input name="endDate" type="date" required />
+              </label>
+              <button class="button primary" type="submit">Plan trip</button>
+            </form>
+          </div>
+          <div class="panel" id="incident-panel">
+            <h3>Report a hazard</h3>
+            <form id="incidentForm" class="form-grid" style="margin-top: 12px;">
+              <label>
+                Hazard type
+                <input name="type" placeholder="LANDSLIDE" required />
+              </label>
+              <label>
+                Description
+                <textarea name="description" required></textarea>
+              </label>
+              <label>
+                Route / Location
+                <input name="routeOrLocation" required />
+              </label>
+              <label>
+                Latitude
+                <input name="latitude" type="number" step="0.0001" required />
+              </label>
+              <label>
+                Longitude
+                <input name="longitude" type="number" step="0.0001" required />
+              </label>
+              <label>
+                Image
+                <input name="file" type="file" />
+              </label>
+              <button class="button primary" type="submit">Submit hazard</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="content-grid cols-2">
+          <div class="panel">
+            <h3>Trips</h3>
+            <div id="tripList" class="card-list"></div>
+          </div>
+          <div class="panel">
+            <h3>Active hazards</h3>
+            <div id="incidentList" class="card-list"></div>
+          </div>
+        </div>
+
+        <div class="content-grid cols-2">
+          <div class="panel">
+            <h3>Live alerts</h3>
+            <div id="alertFeed" class="alert-stack">
+              <div class="muted">Live alerts will appear here.</div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Notifications</h3>
+            <div id="notificationList" class="card-list"></div>
+            <div style="margin-top:12px;">
+              <h4>Nearby places</h4>
+              <div id="placesList" class="card-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel hidden" id="adminPanel" style="margin-top: 4px;">
+          <h3>Admin console</h3>
+          <div id="adminList" class="card-list"></div>
+        </div>
+      </section>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

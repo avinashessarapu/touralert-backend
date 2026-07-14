@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 
 @RestController
@@ -52,13 +53,16 @@ public class UserController {
 
         // Verify user existence and cryptographic password match
         if (userOpt.isPresent() && passwordEncoder.matches(password, userOpt.get().getPassword())) {
-            // Generate standard JWT access token bearer string
+            User user = userOpt.get();
             String token = jwtUtil.generateToken(username);
             return Map.of(
                 "status", "SUCCESS",
                 "token", token,
-                "role", userOpt.get().getRole(),
-                "username", username
+                "role", user.getRole(),
+                "username", username,
+                "id", String.valueOf(user.getId()),
+                "email", user.getEmail() == null ? "" : user.getEmail(),
+                "coins", String.valueOf(user.getTripCoins() == null ? 0 : user.getTripCoins())
             );
         } else {
             throw new RuntimeException("Authentication Failed: Invalid username or password credentials.");
@@ -90,5 +94,31 @@ public class UserController {
             userRepository.save(user);
             return "Profile updated successfully for user ID: " + id;
         }).orElseThrow(() -> new RuntimeException("Error: User profile not found."));
+    }
+
+    // Debit user's TripCoins (used for small payments)
+    // URL: PUT /api/users/{id}/coins/debit?amount=10
+    @PutMapping("/{id}/coins/debit")
+    public Map<String, Object> debitCoins(@PathVariable Long id, @RequestParam Integer amount) {
+        return userRepository.findById(id).map(user -> {
+            Integer current = user.getTripCoins() == null ? 0 : user.getTripCoins();
+            if (amount == null || amount <= 0) throw new RuntimeException("Invalid amount");
+            if (current < amount) throw new RuntimeException("Insufficient TripCoins");
+            user.setTripCoins(current - amount);
+            userRepository.save(user);
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("status", "OK");
+            resp.put("coins", user.getTripCoins());
+            return resp;
+        }).orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    @GetMapping("/{id}/coins")
+    public Map<String, Object> getCoins(@PathVariable Long id) {
+        return userRepository.findById(id).map(user -> {
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("coins", user.getTripCoins() == null ? 0 : user.getTripCoins());
+            return resp;
+        }).orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

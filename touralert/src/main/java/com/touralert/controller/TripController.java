@@ -6,6 +6,7 @@ import com.touralert.model.Trip;
 import com.touralert.repository.IncidentRepository;
 import com.touralert.repository.TripRepository;
 import com.touralert.repository.UserRepository;
+import com.touralert.service.JourneyGuidanceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +30,9 @@ public class TripController {
 
     @Autowired
     private IncidentRepository incidentRepository;
+
+    @Autowired
+    private JourneyGuidanceService journeyGuidanceService;
 
     // 1. Endpoint to plan a new trip
     // URL: POST http://localhost:8080/api/trips?userId=1
@@ -139,12 +143,29 @@ public class TripController {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new RuntimeException("Trip not found with ID: " + tripId));
 
-        // Aggregate and cross-reference active hazards near the destination
         List<Incident> activeHazards = incidentRepository.findByStatusNotIgnoreCase("RESOLVED").stream()
-                .filter(incident -> incident.getRouteOrLocation().toLowerCase().contains(trip.getDestination().toLowerCase()))
+                .filter(incident -> isRelevantToTrip(trip, incident))
                 .toList();
 
-        return new TripRiskAnalysis(trip, activeHazards);
+        TripRiskAnalysis analysis = new TripRiskAnalysis(trip, activeHazards);
+        analysis.setRecommendation(journeyGuidanceService.buildSuggestion(
+                activeHazards.isEmpty() ? "SAFE" : activeHazards.get(0).getType(),
+                trip.getDestination(),
+                trip.getStartLocation()
+        ));
+        return analysis;
     }
-    
+
+    private boolean isRelevantToTrip(Trip trip, Incident incident) {
+        String destination = trip.getDestination() == null ? "" : trip.getDestination().toLowerCase();
+        String startLocation = trip.getStartLocation() == null ? "" : trip.getStartLocation().toLowerCase();
+        String location = incident.getRouteOrLocation() == null ? "" : incident.getRouteOrLocation().toLowerCase();
+
+        return !destination.isEmpty() && (
+            location.contains(destination) ||
+            destination.contains(location) ||
+            location.contains(startLocation) ||
+            startLocation.contains(location)
+        );
+    }
 }

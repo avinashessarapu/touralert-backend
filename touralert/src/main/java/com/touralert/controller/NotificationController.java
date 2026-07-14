@@ -2,10 +2,10 @@ package com.touralert.controller;
 
 import com.touralert.model.*;
 import com.touralert.repository.*;
+import com.touralert.service.JourneyGuidanceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -21,40 +21,60 @@ public class NotificationController {
     @Autowired
     private IncidentRepository incidentRepository;
 
+    @Autowired
+    private JourneyGuidanceService journeyGuidanceService;
+
     // Trigger a live engine scan and return unread notifications for a user
-    // Trigger an optimized, duplicate-aware live engine scan
     @GetMapping("/user/{userId}")
     public List<Notification> getUserNotifications(@PathVariable Long userId) {
-        // 1. Find all ongoing or planned trips for this user
         List<Trip> userTrips = tripRepository.findByTravelerId(userId);
-        
-        // 2. Fetch all active hazards
         List<Incident> activeIncidents = incidentRepository.findByStatusNotIgnoreCase("RESOLVED");
-        
-        // 3. Scan and cleanly generate notifications
+
         for (Trip trip : userTrips) {
+            if (trip == null || trip.getDestination() == null) {
+                continue;
+            }
+
+            boolean isJourneyActive = "PLANNED".equalsIgnoreCase(trip.getStatus()) || "ONGOING".equalsIgnoreCase(trip.getStatus());
+            if (!isJourneyActive) {
+                continue;
+            }
+
             for (Incident incident : activeIncidents) {
-                if (incident.getRouteOrLocation().toLowerCase().contains(trip.getDestination().toLowerCase())) {
-                    
-                    String typeKeyword = incident.getType(); // e.g., "LANDSLIDE"
-                    
-                    // Business Rule Check: Does this specific alert already exist for this trip?
-                    boolean alreadyNotified = notificationRepository
-                        .existsByRecipientIdAndRelatedTripIdAndMessageContaining(userId, trip.getId(), typeKeyword);
-                    
-                    if (!alreadyNotified) {
-                        String alertMessage = "WARNING: " + typeKeyword + " reported near your destination (" 
-                                              + trip.getDestination() + "). Hazard details: " + incident.getDescription();
-                        
-                        Notification alert = new Notification(alertMessage, trip.getTraveler(), trip);
-                        notificationRepository.save(alert);
-                    }
+                if (incident == null || incident.getRouteOrLocation() == null) {
+                    continue;
+                }
+
+                if (!isRelevantToTrip(trip, incident)) {
+                    continue;
+                }
+
+                String typeKeyword = incident.getType() == null ? "HAZARD" : incident.getType();
+                boolean alreadyNotified = notificationRepository
+                    .existsByRecipientIdAndRelatedTripIdAndMessageContaining(userId, trip.getId(), typeKeyword);
+
+                if (!alreadyNotified) {
+                    String alertMessage = journeyGuidanceService.buildAlertMessage(incident, trip.getDestination());
+                    Notification alert = new Notification(alertMessage, trip.getTraveler(), trip);
+                    notificationRepository.save(alert);
                 }
             }
         }
 
-        // 4. Return all unread notifications currently sitting in the database for this user
         return notificationRepository.findByRecipientIdAndIsReadFalse(userId);
+    }
+
+    private boolean isRelevantToTrip(Trip trip, Incident incident) {
+        String destination = trip.getDestination() == null ? "" : trip.getDestination().toLowerCase();
+        String startLocation = trip.getStartLocation() == null ? "" : trip.getStartLocation().toLowerCase();
+        String location = incident.getRouteOrLocation() == null ? "" : incident.getRouteOrLocation().toLowerCase();
+
+        return !destination.isEmpty() && (
+            location.contains(destination) ||
+            destination.contains(location) ||
+            location.contains(startLocation) ||
+            startLocation.contains(location)
+        );
     }
 
 

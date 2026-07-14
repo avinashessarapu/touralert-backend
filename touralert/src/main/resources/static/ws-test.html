@@ -1,67 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>TourAlert Live Dashboard Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ TourAlert Control Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 30px; background: #f4f6f9; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto; }
-        #status { font-weight: bold; padding: 8px; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
-        .connected { background: #e6f4ea; color: #137333; }
-        .disconnected { background: #fce8e6; color: #c5221f; }
-        #alerts { margin-top: 15px; }
-        .alert-box { background: #fff3cd; border-left: 5px solid #ffc107; padding: 12px; margin-bottom: 10px; border-radius: 4px; animation: slideIn 0.3s ease; }
-        @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp-websocket/2.3.3/stomp.min.js"></script>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+    <header class="border-b border-slate-800 bg-slate-950/50 p-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">📡 TourAlert Control Center</h1>
+        <div id="status" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-950 text-red-400 border border-red-800">🔴 Connecting...</div>
+    </header>
 
-<div class="card">
-    <h2>📡 TourAlert Live Stream Monitor</h2>
-    <div id="status" class="disconnected">Connecting to Backend WebSocket Channel...</div>
-    
-    <h3>Live Broadcast Stream:</h3>
-    <div id="alerts"><em>Waiting for live incident broadcasts from backend...</em></div>
-</div>
+    <main class="max-w-6xl mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section class="bg-slate-950/40 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4">
+            <h2 class="text-lg font-bold text-slate-200 border-b border-slate-800 pb-2">🛠️ System Simulator</h2>
+            <button onclick="simulateIncidentUpload()" class="w-full bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl text-sm font-medium border border-slate-700 transition">1️⃣ Step 1: Upload Mock Incident (POST)</button>
+            <button onclick="simulateIncidentVerification()" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 py-3 rounded-xl text-sm font-semibold transition">2️⃣ Step 2: Verify & Broadcast Alert (PUT)</button>
+            <div class="mt-4">
+                <div id="consoleLogs" class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-emerald-400 h-40 overflow-y-auto">> Interface ready.</div>
+            </div>
+        </section>
 
-<script>
-    // Dynamically detects if you are using localhost or a GitHub proxy URL
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
-    // Configures the correct URL automatically
-    const socketUrl = isLocalhost 
-        ? 'http://localhost:8080/ws-alerts' 
-        : `${window.location.protocol}//${window.location.host}/ws-alerts`;
-        
-    console.log("Attempting live connection to:", socketUrl);
-    
-    // Initialize SockJS and STOMP
-    const socket = new SockJS(socketUrl);
-    const stompClient = Stomp.over(socket);
+        <section class="bg-slate-950/40 border border-slate-800 rounded-2xl p-5 flex flex-col min-h-[350px]">
+            <h2 class="text-lg font-bold text-slate-200 border-b border-slate-800 pb-2">🔔 Live Broadcast Feed</h2>
+            <div id="alertsContainer" class="flex-1 mt-4 flex flex-col gap-3">
+                <div id="emptyState" class="text-center text-slate-500 my-auto">Waiting for live streams...</div>
+            </div>
+        </section>
+    </main>
 
-    stompClient.connect({}, function (frame) {
-        const statusDiv = document.getElementById('status');
-        statusDiv.innerText = "⚡ Connected to Live WebSocket Stream!";
-        statusDiv.className = "connected";
-        console.log('Connected: ' + frame);
+    <script>
+        function localLog(msg, isErr = false) {
+            const box = document.getElementById('consoleLogs');
+            box.innerHTML += `<br><span class="${isErr ? 'text-rose-400' : 'text-emerald-400'}">> ${msg}</span>`;
+            box.scrollTop = box.scrollHeight;
+        }
 
-        stompClient.subscribe('/topic/active-hazards', function (response) {
-            const hazard = JSON.parse(response.body);
-            const alertsDiv = document.getElementById('alerts');
-            
-            if(alertsDiv.querySelector('em')) alertsDiv.innerHTML = '';
-            
-            const newAlert = document.createElement('div');
-            newAlert.className = 'alert-box';
-            newAlert.innerHTML = `<strong>⚠️ LIVE ALERT: ${hazard.type}</strong><br>${hazard.description}<br><small>📍 Location: ${hazard.routeOrLocation}</small>`;
-            alertsDiv.insertBefore(newAlert, alertsDiv.firstChild);
+        const socketUrl = `${window.location.protocol}//${window.location.host}/ws-alerts`;
+        const socket = new SockJS(socketUrl);
+        const stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect({}, function () {
+            const status = document.getElementById('status');
+            status.innerText = "⚡ Connected to Live Broker";
+            status.className = "px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800";
+            localLog("WebSocket linked successfully.");
+
+            stompClient.subscribe('/topic/active-hazards', function (response) {
+                const hazard = JSON.parse(response.body);
+                localLog(`Broadcast caught: ${hazard.type}`);
+                renderAlertCard(hazard);
+            });
+        }, function() {
+            localLog("Connection error.", true);
         });
-    }, function(error) {
-        const statusDiv = document.getElementById('status');
-        statusDiv.innerText = "❌ Connection Failed. Check if server is running.";
-        statusDiv.className = "disconnected";
-    });
-</script>
+
+        function renderAlertCard(data) {
+            const container = document.getElementById('alertsContainer');
+            const empty = document.getElementById('emptyState');
+            if(empty) empty.remove();
+            const card = document.createElement('div');
+            card.className = "bg-slate-900 border border-amber-500/30 rounded-xl p-4 border-l-4 border-l-amber-500";
+            card.innerHTML = `<div class="text-xs font-bold text-amber-400 uppercase">⚠️ ${data.type || 'HAZARD'}</div>
+                              <p class="text-sm text-slate-200 my-1">${data.description || 'No details.'}</p>
+                              <div class="text-xs text-slate-400">📍 ${data.routeOrLocation || 'Unknown'}</div>`;
+            container.insertBefore(card, container.firstChild);
+        }
+
+        function simulateIncidentUpload() {
+            localLog("Firing POST /api/incidents/upload...");
+            const formData = new FormData();
+            formData.append("type", "FLOODING");
+            formData.append("description", "Flash flooding across low-lying bridge sections.");
+            formData.append("routeOrLocation", "Chapari Waterfall Access Road");
+            formData.append("latitude", "18.2850");
+            formData.append("longitude", "82.9110");
+
+            fetch('/api/incidents/upload?userId=1', { method: 'POST', body: formData })
+            .then(res => res.ok ? localLog("POST complete. Status: PENDING.") : localLog("POST failed.", true))
+            .catch(() => localLog("Network error.", true));
+        }
+
+        function simulateIncidentVerification() {
+            localLog("Firing PUT /api/incidents/1/status...");
+            fetch('/api/incidents/1/status?status=VERIFIED&adminUserId=2', { method: 'PUT' })
+            .then(res => res.ok ? localLog("PUT complete! Warning broadcasted.") : localLog("PUT failed.", true))
+            .catch(() => localLog("Network error.", true));
+        }
+    </script>
 </body>
 </html>

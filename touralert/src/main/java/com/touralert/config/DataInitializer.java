@@ -48,6 +48,7 @@ public class DataInitializer implements CommandLineRunner {
             admin.setEmail("admin@touralert.com");
             admin.setPassword(passwordEncoder.encode("adminsecure456")); // Securely Hashed
             admin.setRole("ADMIN");
+            admin.setTripCoins(0);
             userRepository.save(admin);
 
             // 3. Seed a mock planned trip for our traveler heading to Araku
@@ -69,6 +70,10 @@ public class DataInitializer implements CommandLineRunner {
             landslide.setReporter(traveler);
             landslide.setReportedAt(java.time.LocalDateTime.now());
             incidentRepository.save(landslide);
+
+            // Ensure traveler starts with 0 TripCoins
+            traveler.setTripCoins(0);
+            userRepository.save(traveler);
 
             System.out.println("====== DATABASE SEEDING LOGS COMPLETED SUCCESSFULLY ======");
         }
