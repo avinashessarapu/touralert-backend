@@ -3,6 +3,7 @@ package com.touralert.controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.touralert.repository.IncidentRepository;
+import com.touralert.repository.SubmissionLogRepository;
 import com.touralert.model.Incident;
 import java.util.Map;
 

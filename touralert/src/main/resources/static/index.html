@@ -9,19 +9,21 @@
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
   </head>
   <body>
-    <div class="container">
-      <header>
-        <div class="brand">
-          <div class="brand-badge">⚡</div>
-          <div>
-            <h1>TourAlert</h1>
-            <p>Live traveler safety and hazard monitoring</p>
+    <div class="wrapper">
+      <header class="main-header">
+        <div class="header-left">
+          <div class="brand">
+            <div class="brand-badge">⚡</div>
+            <div class="brand-info">
+              <h1>TourAlert</h1>
+              <p>Live Safety Command Center</p>
+            </div>
           </div>
         </div>
-        <div class="auth-actions">
-          <button id="themeToggle" class="btn secondary">🌙 Dark</button>
-          <span id="socketStatus" class="status-busy">● Offline</span>
-          <button class="btn danger logout-btn hidden">Logout</button>
+        <div class="header-right">
+          <button id="themeToggle" class="btn secondary icon-btn" title="Toggle theme">🌙</button>
+          <span id="socketStatus" class="status-indicator busy">● Offline</span>
+          <button class="btn danger logout-btn hidden">🚪 Logout</button>
         </div>
       </header>
 
@@ -262,9 +264,14 @@
           </div>
         </div>
 
-        <div class="panel hidden" id="adminPanel" style="margin-top: 4px;">
-          <h3>Admin console</h3>
-          <div id="adminList" class="card-list"></div>
+        </div>
+
+        <div class="panel section-panel hidden" id="admin-panel">
+          <div class="panel-header">
+            <h2>⚙️ Admin Console</h2>
+            <p class="muted">Manage incidents</p>
+          </div>
+          <div id="adminList" class="admin-grid"></div>
         </div>
       </section>
     </div>
