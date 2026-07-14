@@ -12,6 +12,8 @@ public class AdminController {
 
     @Autowired
     private IncidentRepository incidentRepository;
+    @Autowired
+    private SubmissionLogRepository submissionLogRepository;
 
     // Simple scaffold: submit incident to government portal (stub)
     @PostMapping("/incidents/{id}/submit-gov")
@@ -20,7 +22,17 @@ public class AdminController {
         if (incident == null) throw new RuntimeException("Incident not found");
         // In production, integrate with government API (OAuth, signed payload, etc.)
         String govUrl = "https://gov.example.org/verify?incidentId=" + id;
-        // mark as submitted (note: do not change status here)
+        // persist submission log
+        com.touralert.model.SubmissionLog log = new com.touralert.model.SubmissionLog();
+        log.setIncidentId(id);
+        log.setTarget(govUrl);
+        log.setStatus("submitted");
+        submissionLogRepository.save(log);
         return Map.of("status", "submitted", "govUrl", govUrl);
+    }
+
+    @GetMapping("/incidents/{id}/submissions")
+    public java.util.List<com.touralert.model.SubmissionLog> submissions(@PathVariable Long id) {
+        return submissionLogRepository.findByIncidentIdOrderByCreatedAtDesc(id);
     }
 }

@@ -148,6 +148,15 @@ function toggleTheme() {
   applyTheme(nextTheme);
 }
 
+// Helper to include Authorization header when available
+function apiFetch(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (state.token) {
+    opts.headers['Authorization'] = `Bearer ${state.token}`;
+  }
+  return fetch(path, opts);
+}
+
 function ensureMap() {
   if (window.__googleMapsLoaded) return Promise.resolve();
   return fetch('/api/config').then(r => r.json()).then(cfg => {
@@ -316,9 +325,9 @@ async function loadDashboard() {
   if (!state.user) return;
   try {
     const [tripsRes, hazardsRes, notificationsRes] = await Promise.all([
-      fetch(`/api/trips/user/${state.user.id}`),
-      fetch('/api/incidents/active'),
-      fetch(`/api/notifications/user/${state.user.id}`)
+      apiFetch(`/api/trips/user/${state.user.id}`),
+      apiFetch('/api/incidents/active'),
+      apiFetch(`/api/notifications/user/${state.user.id}`)
     ]);
 
     state.trips = tripsRes.ok ? await tripsRes.json() : [];
@@ -344,7 +353,7 @@ async function handleCreateTrip(event) {
   if (!state.user) return;
   const formData = new FormData(els.tripForm);
   try {
-    const response = await fetch(`/api/trips?userId=${state.user.id}`, {
+    const response = await apiFetch(`/api/trips?userId=${state.user.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -379,7 +388,7 @@ async function handleCreateIncident(event) {
   if (file && file.size) payload.append('file', file);
 
   try {
-    const response = await fetch('/api/incidents/upload', {
+    const response = await apiFetch('/api/incidents/upload', {
       method: 'POST',
       body: payload
     });
@@ -395,7 +404,7 @@ async function handleCreateIncident(event) {
 
 async function dismissNotification(id) {
   try {
-    await fetch(`/api/notifications/dismiss/${id}`, { method: 'PATCH' });
+    await apiFetch(`/api/notifications/dismiss/${id}`, { method: 'PATCH' });
     await loadDashboard();
   } catch (error) {
     setStatus(error.message, false);
@@ -404,7 +413,7 @@ async function dismissNotification(id) {
 
 async function updateTripStatus(id, status) {
   try {
-    await fetch(`/api/trips/${id}/status?status=${status}`, { method: 'PUT' });
+    await apiFetch(`/api/trips/${id}/status?status=${status}`, { method: 'PUT' });
     setStatus(`Trip marked as ${status.toLowerCase()}`);
     await loadDashboard();
   } catch (error) {
@@ -415,7 +424,7 @@ async function updateTripStatus(id, status) {
 async function updateIncidentStatus(id, status) {
   if (!state.user || state.user.role !== 'ADMIN') return;
   try {
-    await fetch(`/api/incidents/${id}/status?status=${status}&adminUserId=${state.user.id}`, { method: 'PUT' });
+    await apiFetch(`/api/incidents/${id}/status?status=${status}&adminUserId=${state.user.id}`, { method: 'PUT' });
     setStatus(`Incident marked as ${status}`);
     await loadDashboard();
   } catch (error) {
@@ -425,7 +434,7 @@ async function updateIncidentStatus(id, status) {
 
 async function viewTripRisk(id) {
   try {
-    const response = await fetch(`/api/trips/${id}/risk-assessment`);
+    const response = await apiFetch(`/api/trips/${id}/risk-assessment`);
     const data = await response.json();
     const summary = data.activeHazards?.length
       ? `${data.activeHazards.length} active hazard(s) linked to this route.`
@@ -457,7 +466,7 @@ function showTripMap(tripId) {
 
 async function runRadarScan() {
   try {
-    const response = await fetch('/api/trips/radar?currentLat=18.2850&currentLng=82.9110');
+    const response = await apiFetch('/api/trips/radar?currentLat=18.2850&currentLng=82.9110');
     const data = await response.json();
     els.riskOutput.innerHTML = data.join('<br/>');
     setStatus('Route scan completed');
@@ -517,7 +526,7 @@ function showTripMap(tripId) {
 async function spendCoins(amount) {
   if (!state.user) return setStatus('Login to spend TripCoins', false);
   try {
-    const res = await fetch(`/api/users/${state.user.id}/coins/debit?amount=${amount}`, { method: 'PUT' });
+    const res = await apiFetch(`/api/users/${state.user.id}/coins/debit?amount=${amount}`, { method: 'PUT' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'Payment failed');
     // update local state and UI
@@ -592,6 +601,7 @@ function renderAdminConsole() {
     els.adminList.innerHTML = '<div class="list-item muted">No incidents to review.</div>';
     return;
   }
+  // Render incidents and include a container for submission logs
   els.adminList.innerHTML = state.incidents.map(incident => `
     <div class="list-item">
       <div class="inline-row">
@@ -600,11 +610,25 @@ function renderAdminConsole() {
       </div>
       <div class="muted small">${incident.description}</div>
       <div class="chip-row">
-        <button class="chip primary" onclick="updateIncidentStatus(${incident.id}, 'VERIFIED')">Verify</button>
-        <button class="chip danger" onclick="updateIncidentStatus(${incident.id}, 'RESOLVED')">Resolve</button>
+        <button class="chip primary" data-action="verify" data-incident-id="${incident.id}">Verify</button>
+        <button class="chip" data-action="gov" data-incident-id="${incident.id}">Submit to Gov</button>
+        <button class="chip danger" data-action="resolve" data-incident-id="${incident.id}">Resolve</button>
       </div>
+      <div id="submissions-${incident.id}" class="muted small" style="margin-top:8px;">Loading submissions...</div>
     </div>
   `).join('');
+  // fetch submission logs for each incident
+  state.incidents.forEach(incident => {
+    apiFetch(`/api/admin/incidents/${incident.id}/submissions`).then(r => r.ok ? r.json() : []).then(list => {
+      const container = document.getElementById(`submissions-${incident.id}`);
+      if (!container) return;
+      if (!list || !list.length) { container.innerHTML = '<div class="muted small">No submissions yet</div>'; return; }
+      container.innerHTML = list.map(s => `<div>${new Date(s.createdAt).toLocaleString()} → ${s.status} (<a href="${s.target}" target="_blank">link</a>)</div>`).join('');
+    }).catch(() => {
+      const container = document.getElementById(`submissions-${incident.id}`);
+      if (container) container.innerHTML = '<div class="muted small">Unable to load submissions</div>';
+    });
+  });
 }
 
 function connectSocket() {

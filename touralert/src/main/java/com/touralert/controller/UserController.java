@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 import java.util.HashMap;
+import com.touralert.model.CoinTransaction;
+import com.touralert.repository.CoinTransactionRepository;
 import java.util.Optional;
 
 @RestController
@@ -20,6 +22,9 @@ public class UserController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private CoinTransactionRepository coinTransactionRepository;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -118,6 +123,32 @@ public class UserController {
         return userRepository.findById(id).map(user -> {
             Map<String, Object> resp = new HashMap<>();
             resp.put("coins", user.getTripCoins() == null ? 0 : user.getTripCoins());
+            return resp;
+        }).orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    @GetMapping("/{id}/coins/transactions")
+    public List<CoinTransaction> getCoinTransactions(@PathVariable Long id) {
+        return coinTransactionRepository.findByUserIdOrderByCreatedAtDesc(id);
+    }
+
+    // Spend coins and record transaction
+    @PutMapping("/{id}/coins/spend")
+    public Map<String, Object> spendCoins(@PathVariable Long id, @RequestParam Integer amount, @RequestParam(required = false) String reason) {
+        if (amount == null || amount <= 0) throw new RuntimeException("Invalid amount");
+        return userRepository.findById(id).map(user -> {
+            Integer current = user.getTripCoins() == null ? 0 : user.getTripCoins();
+            if (current < amount) throw new RuntimeException("Insufficient TripCoins");
+            user.setTripCoins(current - amount);
+            userRepository.save(user);
+            CoinTransaction tx = new CoinTransaction();
+            tx.setUserId(id);
+            tx.setAmount(-amount);
+            tx.setReason(reason == null ? "spend" : reason);
+            coinTransactionRepository.save(tx);
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("status", "OK");
+            resp.put("coins", user.getTripCoins());
             return resp;
         }).orElseThrow(() -> new RuntimeException("User not found"));
     }
