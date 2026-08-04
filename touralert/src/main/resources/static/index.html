@@ -1,281 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TourAlert | Safety Command Center</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-  </head>
-  <body>
-    <div class="wrapper">
-      <header class="main-header">
-        <div class="header-left">
-          <div class="brand">
-            <div class="brand-badge">⚡</div>
-            <div class="brand-info">
-              <h1>TourAlert</h1>
-              <p>Live Safety Command Center</p>
-            </div>
-          </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TourAlert</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: rgba(11, 20, 35, 0.96);
+      --panel-alt: #101c30;
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #f59e0b;
+      --accent-2: #38bdf8;
+      --danger: #fb7185;
+      --success: #34d399;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+    }
+    body[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f5f7ff;
+      --panel: #ffffff;
+      --panel-alt: #f8fbff;
+      --border: rgba(15, 23, 42, 0.12);
+      --text: #14213d;
+      --muted: #5b6478;
+      --accent: #f97316;
+      --accent-2: #2563eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #0c1424 0%, #07111f 60%, #030712 100%);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 220ms ease, color 220ms ease;
+    }
+    body[data-theme="light"] { background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; margin-bottom: 20px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-badge { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 1.3rem; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; font-weight: 800; }
+    .brand h1 { margin: 0; font-size: 1.25rem; }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: 0.88rem; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); padding: 10px 14px; border-radius: 10px; transition: transform 180ms ease, border-color 180ms ease; }
+    button:hover { transform: translateY(-1px); border-color: var(--accent-2); }
+    .primary { background: linear-gradient(135deg, var(--accent), #ea580c); color: white; border-color: transparent; }
+    .secondary { background: rgba(56, 189, 248, 0.14); color: var(--accent-2); }
+    .muted { color: var(--muted); }
+    .grid { display: grid; gap: 18px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .panel { padding: 20px; }
+    .panel h2 { margin: 0 0 10px; font-size: 1.1rem; }
+    .panel p { margin: 0 0 14px; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+    form { display: grid; gap: 12px; }
+    label { font-size: 0.88rem; color: var(--muted); font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); }
+    textarea { min-height: 96px; resize: vertical; }
+    .status { padding: 10px 12px; border-radius: 10px; background: rgba(56, 189, 248, 0.12); color: var(--accent-2); min-height: 42px; display: flex; align-items: center; }
+    .list { display: grid; gap: 10px; }
+    .item { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,0.03); }
+    .item strong { display: block; margin-bottom: 4px; }
+    .pill { display: inline-block; padding: 5px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; margin-top: 6px; }
+    .pill.open { background: rgba(245, 158, 11, 0.16); color: #fde68a; }
+    .pill.resolved { background: rgba(52, 211, 153, 0.16); color: #bbf7d0; }
+    .pill.critical { background: rgba(251, 113, 133, 0.16); color: #fecdd3; }
+    .hero { display: grid; gap: 16px; margin-bottom: 18px; }
+    .hero h2 { margin: 0; font-size: 1.4rem; }
+    .hero p { margin: 0; color: var(--muted); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+    .stat { padding: 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); }
+    .stat strong { display: block; font-size: 1.45rem; margin-top: 6px; color: var(--accent); }
+    .status-online { color: var(--success); }
+    .status-offline { color: var(--danger); }
+    @media (max-width: 900px) { .grid-2, .stats { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="container">
+    <header class="card header">
+      <div class="brand">
+        <div class="brand-badge">⚡</div>
+        <div>
+          <h1>TourAlert</h1>
+          <p>Real-time traveler safety and hazard monitoring</p>
         </div>
-        <div class="header-right">
-          <button id="themeToggle" class="btn secondary icon-btn" title="Toggle theme">🌙</button>
-          <span id="socketStatus" class="status-indicator busy">● Offline</span>
-          <button class="btn danger logout-btn hidden">🚪 Logout</button>
-        </div>
-      </header>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggle" class="secondary">☀️ Light</button>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+      </div>
+    </header>
 
-      <section id="authView" class="hero">
-        <div class="hero-grid">
-          <div class="auth-intro">
-            <p class="badge warning">Always-on incident response</p>
-            <h2>Design a calm, confident journey with a beautifully guided safety command center</h2>
-            <p>Explore live hazards, review smart route insights, and move between traveler and admin experiences with fast, elegant navigation.</p>
-            <div class="portal-grid">
-              <button class="portal-card traveler" data-demo="traveler">
-                <strong>Traveler workspace</strong>
-                <span>Plan routes, submit hazards, and stay aware in real time.</span>
-              </button>
-              <button class="portal-card admin" data-demo="admin">
-                <strong>Admin workspace</strong>
-                <span>Review incidents, coordinate responses, and monitor active risk.</span>
-              </button>
-            </div>
-            <div class="stats">
-              <div class="stat-card">
-                <span class="muted">Trips</span>
-                <strong id="statTrips">0</strong>
-              </div>
-              <div class="stat-card">
-                <span class="muted">Hazards</span>
-                <strong id="statHazards">0</strong>
-              </div>
-              <div class="stat-card">
-                <span class="muted">Alerts</span>
-                <strong id="statAlerts">0</strong>
-              </div>
-            </div>
-          </div>
+    <section class="hero">
+      <h2>Live safety command center</h2>
+      <p>Report hazards, inspect the latest incidents, and receive live WebSocket broadcasts instantly.</p>
+    </section>
 
-          <div class="panel auth-panel">
-            <div class="auth-switcher">
-              <button class="switch-btn active" data-auth-view="login">Login</button>
-              <button class="switch-btn" data-auth-view="signup">Sign up</button>
+    <section class="stats">
+      <div class="card stat"><span class="muted">Connected</span><strong id="connectedState" class="status-offline">Offline</strong></div>
+      <div class="card stat"><span class="muted">Incidents</span><strong id="incidentCount">0</strong></div>
+      <div class="card stat"><span class="muted">Live Feed</span><strong id="feedCount">0</strong></div>
+    </section>
+
+    <div class="grid grid-2">
+      <section class="card panel">
+        <h2>Report a hazard</h2>
+        <p>Submit a new incident so it is stored in the embedded H2 database and broadcast to connected clients.</p>
+        <form id="incidentForm">
+          <div class="grid">
+            <label>Type
+              <select name="type" required>
+                <option value="LANDSLIDE">Landslide</option>
+                <option value="FLOODING">Flooding</option>
+                <option value="ACCIDENT">Accident</option>
+                <option value="HEAVY_RAIN">Heavy Rain</option>
+              </select>
+            </label>
+            <label>Description
+              <textarea name="description" required placeholder="Describe the hazard in detail..."></textarea>
+            </label>
+            <label>Route / Location
+              <input name="routeOrLocation" required placeholder="e.g. Araku Ghat Road" />
+            </label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <label>Latitude
+                <input name="latitude" type="number" step="0.0001" value="18.2850" required />
+              </label>
+              <label>Longitude
+                <input name="longitude" type="number" step="0.0001" value="82.9110" required />
+              </label>
             </div>
-            <div id="loginPanel" class="auth-panel-body">
-              <div class="inline-row">
-                <h3>Welcome back</h3>
-                <span id="statusMessage" class="muted">Secure access to your traveler console</span>
-              </div>
-              <form id="loginForm" class="form-grid" style="margin-top: 12px;">
-                <label>
-                  Username
-                  <input name="username" required />
-                </label>
-                <label>
-                  Password
-                  <input name="password" type="password" required />
-                </label>
-                <button class="btn primary" type="submit">Login</button>
-              </form>
-            </div>
-            <div id="signupPanel" class="auth-panel-body hidden">
-              <div class="inline-row">
-                <h3>Create account</h3>
-                <span class="muted">Start exploring the full experience</span>
-              </div>
-              <form id="registerForm" class="form-grid" style="margin-top: 10px;">
-                <label>
-                  Username
-                  <input name="username" required />
-                </label>
-                <label>
-                  Email
-                  <input name="email" type="email" required />
-                </label>
-                <label>
-                  Password
-                  <input name="password" type="password" required />
-                </label>
-                <button class="btn secondary" type="submit">Create account</button>
-              </form>
-            </div>
+            <button class="primary" type="submit">Submit incident</button>
           </div>
-        </div>
+        </form>
+        <div id="formStatus" class="status" style="margin-top: 12px;">Ready to send a new hazard report.</div>
       </section>
 
-      <section id="dashboardView" class="hidden dashboard-shell">
-        <div class="topbar">
-          <div>
-            <h2 style="margin: 0;">Welcome back, <span id="userLabel">Traveler</span></h2>
-            <p class="muted">Your safety command center for trips, hazards, and live alerts.</p>
-          </div>
-          <div class="hero-actions">
-            <button id="refreshBtn" class="btn secondary">Refresh</button>
-            <button class="btn danger logout-btn">Logout</button>
-          </div>
-        </div>
-
-        <div class="hero-card">
-          <div>
-            <p class="badge info">Role: <span id="roleBadge">USER</span></p>
-            <h3 id="dashboardTitle" style="margin: 10px 0 6px;">Traveler dashboard</h3>
-            <p id="dashboardSubtitle" class="muted">Monitor route safety, receive updates, and respond quickly to new hazards.</p>
-          </div>
-          <div class="hero-actions">
-            <div style="display:flex;align-items:center;gap:12px;">
-              <div style="text-align:right;">
-                <div class="muted small">TripCoins</div>
-                <div id="coinBalance" style="font-weight:800;">0</div>
-                <div class="muted small">10 coins = ₹2</div>
-              </div>
-              <button class="button primary" id="travelerPortalBtn">Explore traveler</button>
-            <button class="button secondary" id="adminPortalBtn">Explore admin</button>
-            <button class="button secondary" id="refreshDashBtn">Refresh panel</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="stats-grid">
-          <div class="stat-card">
-            <span class="muted">Trips</span>
-            <strong id="statTripsDash">0</strong>
-          </div>
-          <div class="stat-card">
-            <span class="muted">Active hazards</span>
-            <strong id="statHazardsDash">0</strong>
-          </div>
-          <div class="stat-card">
-            <span class="muted">Unread alerts</span>
-            <strong id="statAlertsDash">0</strong>
-          </div>
-          <div class="stat-card">
-            <span class="muted">Connection</span>
-            <strong id="statConnection">Offline</strong>
-          </div>
-        </div>
-
-        <div class="quick-grid">
-          <div class="panel">
-            <h3>Quick actions</h3>
-            <div class="action-grid">
-              <button class="action-card" data-scroll="trip-panel">Plan a new trip →</button>
-              <button class="action-card" data-scroll="incident-panel">Report a hazard →</button>
-              <button class="action-card" data-scroll="admin-panel">Open admin console →</button>
-              <button class="action-card" id="scanAction">Run route intelligence →</button>
-            </div>
-          </div>
-          <div class="panel">
-            <h3>Route intelligence</h3>
-            <div id="riskOutput" class="risk-output">Run a scan to inspect nearby hazards and proximity alerts.</div>
-            <div class="map-card">
-              <div class="inline-row">
-                <strong>Trip route preview</strong>
-                <span id="mapStatus" class="muted small">Select a trip to preview its route.</span>
-              </div>
-              <iframe id="routeMap" class="route-map" src="https://www.google.com/maps?q=TourAlert%20Route&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-            </div>
-          </div>
-        </div>
-
-        <div class="content-grid cols-2">
-          <div class="panel" id="trip-panel">
-            <h3>Plan a trip</h3>
-            <div id="map" style="height:300px;border-radius:12px;margin-bottom:12px;overflow:hidden;"></div>
-            <form id="tripForm" class="form-grid" style="margin-top: 12px;">
-              <label>
-                Destination
-                <input name="destination" required />
-              </label>
-              <label>
-                Start location
-                <input name="startLocation" required />
-              </label>
-              <label>
-                Start date
-                <input name="startDate" type="date" required />
-              </label>
-              <label>
-                End date
-                <input name="endDate" type="date" required />
-              </label>
-              <button class="button primary" type="submit">Plan trip</button>
-            </form>
-          </div>
-          <div class="panel" id="incident-panel">
-            <h3>Report a hazard</h3>
-            <form id="incidentForm" class="form-grid" style="margin-top: 12px;">
-              <label>
-                Hazard type
-                <input name="type" placeholder="LANDSLIDE" required />
-              </label>
-              <label>
-                Description
-                <textarea name="description" required></textarea>
-              </label>
-              <label>
-                Route / Location
-                <input name="routeOrLocation" required />
-              </label>
-              <label>
-                Latitude
-                <input name="latitude" type="number" step="0.0001" required />
-              </label>
-              <label>
-                Longitude
-                <input name="longitude" type="number" step="0.0001" required />
-              </label>
-              <label>
-                Image
-                <input name="file" type="file" />
-              </label>
-              <button class="button primary" type="submit">Submit hazard</button>
-            </form>
-          </div>
-        </div>
-
-        <div class="content-grid cols-2">
-          <div class="panel">
-            <h3>Trips</h3>
-            <div id="tripList" class="card-list"></div>
-          </div>
-          <div class="panel">
-            <h3>Active hazards</h3>
-            <div id="incidentList" class="card-list"></div>
-          </div>
-        </div>
-
-        <div class="content-grid cols-2">
-          <div class="panel">
-            <h3>Live alerts</h3>
-            <div id="alertFeed" class="alert-stack">
-              <div class="muted">Live alerts will appear here.</div>
-            </div>
-          </div>
-          <div class="panel">
-            <h3>Notifications</h3>
-            <div id="notificationList" class="card-list"></div>
-            <div style="margin-top:12px;">
-              <h4>Nearby places</h4>
-              <div id="placesList" class="card-list"></div>
-            </div>
-          </div>
-        </div>
-
-        </div>
-
-        <div class="panel section-panel hidden" id="admin-panel">
-          <div class="panel-header">
-            <h2>⚙️ Admin Console</h2>
-            <p class="muted">Manage incidents</p>
-          </div>
-          <div id="adminList" class="admin-grid"></div>
-        </div>
+      <section class="card panel">
+        <h2>Live hazard feed</h2>
+        <p>Incoming broadcasts arrive through STOMP/SockJS and are rendered instantly in this feed.</p>
+        <div id="feed" class="list"></div>
       </section>
     </div>
 
-    <script src="/app.js"></script>
-  </body>
+    <section class="card panel" style="margin-top: 18px;">
+      <h2>Recent incidents</h2>
+      <p>Stored incidents from the embedded H2 database are refreshed automatically on load.</p>
+      <div id="incidentList" class="list"></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <script>
+    const state = {
+      incidents: [],
+      connected: false,
+      stompClient: null,
+      theme: 'dark'
+    };
+
+    const els = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+      els.form = document.getElementById('incidentForm');
+      els.formStatus = document.getElementById('formStatus');
+      els.feed = document.getElementById('feed');
+      els.incidentList = document.getElementById('incidentList');
+      els.connectedState = document.getElementById('connectedState');
+      els.incidentCount = document.getElementById('incidentCount');
+      els.feedCount = document.getElementById('feedCount');
+      els.themeToggle = document.getElementById('themeToggle');
+      els.refreshBtn = document.getElementById('refreshBtn');
+
+      els.form.addEventListener('submit', submitIncident);
+      els.themeToggle.addEventListener('click', toggleTheme);
+      els.refreshBtn.addEventListener('click', loadIncidents);
+
+      const savedTheme = localStorage.getItem('touralert-theme') || 'dark';
+      applyTheme(savedTheme);
+      loadIncidents();
+      connectSocket();
+    });
+
+    function applyTheme(theme) {
+      state.theme = theme;
+      document.body.setAttribute('data-theme', theme);
+      els.themeToggle.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+    }
+
+    function toggleTheme() {
+      const next = state.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('touralert-theme', next);
+      applyTheme(next);
+    }
+
+    async function loadIncidents() {
+      try {
+        const response = await fetch('/api/incidents');
+        const data = await response.json();
+        state.incidents = Array.isArray(data) ? data : [];
+        renderIncidents();
+        updateStats();
+      } catch (error) {
+        setStatus('Unable to load incidents right now.', false);
+      }
+    }
+
+    async function submitIncident(event) {
+      event.preventDefault();
+      const formData = new FormData(els.form);
+      const payload = {
+        type: formData.get('type'),
+        description: formData.get('description'),
+        routeOrLocation: formData.get('routeOrLocation'),
+        latitude: Number(formData.get('latitude')),
+        longitude: Number(formData.get('longitude')),
+        status: 'OPEN'
+      };
+
+      try {
+        const response = await fetch('/api/incidents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Submit failed');
+        els.form.reset();
+        setStatus(`Incident reported successfully at ${data.routeOrLocation || 'the requested route'}.`, true);
+        await loadIncidents();
+      } catch (error) {
+        setStatus(error.message || 'Unable to submit incident.', false);
+      }
+    }
+
+    function renderIncidents() {
+      if (!state.incidents.length) {
+        els.incidentList.innerHTML = '<div class="item muted">No incidents have been recorded yet.</div>';
+        return;
+      }
+
+      els.incidentList.innerHTML = state.incidents.map((incident) => {
+        const statusClass = incident.status === 'OPEN' ? 'open' : incident.status === 'RESOLVED' ? 'resolved' : 'critical';
+        return `
+          <div class="item">
+            <strong>${incident.type || 'Incident'}</strong>
+            <div class="muted">${incident.description || '—'}</div>
+            <div class="muted" style="margin-top: 4px;">${incident.routeOrLocation || 'Unknown location'}</div>
+            <span class="pill ${statusClass}">${incident.status || 'OPEN'}</span>
+          </div>`;
+      }).join('');
+    }
+
+    function updateStats() {
+      els.incidentCount.textContent = state.incidents.length;
+      els.feedCount.textContent = els.feed.children.length;
+    }
+
+    function setStatus(message, success) {
+      els.formStatus.textContent = message;
+      els.formStatus.style.color = success ? 'var(--success)' : 'var(--danger)';
+    }
+
+    function connectSocket() {
+      const socket = new SockJS('/ws');
+      const client = Stomp.over(socket);
+      client.debug = null;
+      client.connect({}, () => {
+        state.connected = true;
+        state.stompClient = client;
+        client.subscribe('/topic/hazards', (message) => {
+          const payload = JSON.parse(message.body);
+          appendFeed(payload);
+          loadIncidents();
+        });
+        setConnectionState(true);
+      }, () => {
+        state.connected = false;
+        setConnectionState(false);
+      });
+    }
+
+    function setConnectionState(online) {
+      els.connectedState.textContent = online ? 'Online' : 'Offline';
+      els.connectedState.className = online ? 'status-online' : 'status-offline';
+    }
+
+    function appendFeed(payload) {
+      const item = document.createElement('div');
+      item.className = 'item';
+      item.innerHTML = `
+        <strong>${payload.type || 'Hazard'}</strong>
+        <div class="muted">${payload.description || 'New hazard broadcast'}</div>
+        <div class="muted" style="margin-top: 4px;">${payload.routeOrLocation || 'Location pending'}</div>
+        <span class="pill open">Live</span>`;
+      els.feed.prepend(item);
+      while (els.feed.children.length > 6) {
+        els.feed.removeChild(els.feed.lastChild);
+      }
+      updateStats();
+    }
+  </script>
+</body>
 </html>
