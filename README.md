@@ -1,4 +1,7 @@
+## 🚀 Live Demo
+- **Live Application:** [https://touralert-backend-production.up.railway.app](https://touralert-backend-production.up.railway.app)
 
+---
 
 # 📡 TourAlert Backend Engine
 > A real-time, event-driven public safety and transit hazard notification system built using Java, Spring Boot, Spring Security, and WebSocket architectures.
